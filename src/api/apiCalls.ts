@@ -1,15 +1,106 @@
 import { Crop, BuyerRequirement, User, AdPoster } from '../data/dummyData';
 
-const API_BASE_URL = 'https://api.your-agriculture-platform.com';
+// Define the BankDetail interface according to your data structure
+export interface BankDetail {
+  account_number: string;
+  ifsc_code: string;
+  bank_name: string;
+  account_holder_name: string;
+  // Add more fields as needed
+}
+export interface BuyerRequirement {
+  id: string;
+  name: string | null;
+  buying_capacity_value: number;
+  buying_capacity_frequency: string;
+  next_tentative_procurement_date: string;
+  tentative_selling_price_per_kg: number;
+  user_id: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
+const API_BASE_URL = 'https://eravanapi.thescript.design/api/2024';
+// Update your User interface to match the API response
+export interface User {
+  id: string;
+  name: string | null;
+  bank_details: BankDetail[] | null;
+  profile_photo: string | null;
+  phone_number: string;
+  whatsapp_number: string | null;
+  user_type: 'farmer' | 'buyer';
+  is_user_signup: boolean;
+  is_active: boolean;
+  address: string | null;
+  gst: string | null;
+  created_at: string;
+  updated_at: string;
+  user_documents: null;
+}
+export interface Crop {
+  id: string;
+  name: string;
+  crop_photo: string;
+  production_capacity_value: number;
+  production_capacity_frequency: string;
+  next_tentative_supply_date: string;
+  tentative_selling_price_per_kg: number;
+  user_id: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BuyerRequirement {
+  id: string;
+  name: string | null;
+  buying_capacity_value: number;
+  buying_capacity_frequency: string;
+  next_tentative_procurement_date: string;
+  tentative_selling_price_per_kg: number;
+  user_id: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 // Crops API
 export const cropsAPI = {
   // Get all crops
   getAllCrops: async (): Promise<Crop[]> => {
-    // const response = await fetch(`${API_BASE_URL}/crops`);
-    // return response.json();
-    console.log('API call: getAllCrops');
-    return [];
+    try {
+      const response = await fetch(`${API_BASE_URL}/crop/get_all_crops`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ to_apply_pagination: false })
+      });
+      const result = await response.json();
+      console.log(result);
+
+      if (result.status && result.data.cropsData) { // Changed to cropsData
+        // Transform the API response to match Crop interface
+        return result.data.cropsData.map((crop: any) => ({
+          id: crop.id,
+          name: crop.name,
+          crop_photo: crop.crop_photo,
+          production_capacity_value: crop.production_capacity_value,
+          production_capacity_frequency: crop.production_capacity_frequency,
+          next_tentative_supply_date: crop.next_tentative_supply_date,
+          tentative_selling_price_per_kg: crop.tentative_selling_price_per_kg,
+          user_id: crop.user_id,
+          is_active: crop.is_active,
+          created_at: crop.created_at,
+          updated_at: crop.updated_at
+        }));
+      }
+      throw new Error(result.message || 'Failed to fetch crops');
+    } catch (error) {
+      console.error('Error fetching crops:', error);
+      throw error;
+    }
   },
 
   // Add new crop
@@ -47,10 +138,38 @@ export const cropsAPI = {
 export const buyerRequirementsAPI = {
   // Get all buyer requirements
   getAllRequirements: async (): Promise<BuyerRequirement[]> => {
-    // const response = await fetch(`${API_BASE_URL}/buyer-requirements`);
-    // return response.json();
-    console.log('API call: getAllRequirements');
-    return [];
+    try {
+      const response = await fetch(`${API_BASE_URL}/crop/get_all_crop_requirements`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ to_apply_pagination: false })
+
+        }); // Update endpoint if needed
+      const result = await response.json();
+
+      if (result.status && result.data.cropRequirementsData) { // Changed to cropRequirementsData
+        // Transform the API response to match BuyerRequirement interface
+        return result.data.cropRequirementsData.map((requirement: any) => ({
+          id: requirement.id,
+          name: requirement.name,
+          buying_capacity_value: requirement.buying_capacity_value,
+          buying_capacity_frequency: requirement.buying_capacity_frequency,
+          next_tentative_procurement_date: requirement.next_tentative_procurement_date,
+          tentative_selling_price_per_kg: requirement.tentative_selling_price_per_kg,
+          user_id: requirement.user_id,
+          is_active: requirement.is_active,
+          created_at: requirement.created_at,
+          updated_at: requirement.updated_at
+        }));
+      }
+      throw new Error(result.message || 'Failed to fetch buyer requirements');
+    } catch (error) {
+      console.error('Error fetching buyer requirements:', error);
+      throw error;
+    }
   },
 
   // Add new requirement
@@ -88,10 +207,41 @@ export const buyerRequirementsAPI = {
 export const usersAPI = {
   // Get all users
   getAllUsers: async (): Promise<User[]> => {
-    // const response = await fetch(`${API_BASE_URL}/users`);
-    // return response.json();
-    console.log('API call: getAllUsers');
-    return [];
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/get_all_users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ to_apply_pagination: false })
+      });
+      const result = await response.json();
+
+      if (result.status && result.data.usersData) {
+        // Return the raw data without unnecessary transformations
+        return result.data.usersData.map((user: any) => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          profile_photo: user.profile_photo,
+          phone_number: user.phone_number,
+          whatsapp_number: user.whatsapp_number,
+          user_type: user.user_type,
+          is_user_signup: user.is_user_signup,
+          is_active: user.is_active,
+          address: user.address,
+          gst: user.gst,
+          bank_details: user.bank_details,
+          created_at: user.created_at,
+          updated_at: user.updated_at,
+          user_documents: user.user_documents
+        }));
+      }
+      throw new Error(result.message || 'Failed to fetch users');
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      throw error;
+    }
   },
 
   // Get farmers only

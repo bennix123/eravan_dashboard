@@ -1,35 +1,88 @@
-import React, { useState } from 'react';
-import { dummyUsers } from '../data/dummyData';
+import React, { useState, useEffect } from 'react';
+// import { usersAPI } from '../data/dummyData';
 import { Search, Filter, UserCheck, UserX, Star, Phone, Mail, MapPin } from 'lucide-react';
+import {User,usersAPI} from '../api/apiCalls'
 
 export const UserManagement: React.FC = () => {
-  const [users, setUsers] = useState(dummyUsers);
+  const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+        const usersData = await usersAPI.getAllUsers();
+        console.log(usersData);
+        setUsers(usersData);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch users');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, []);
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'all' || user.type === filterType;
-    const matchesStatus = filterStatus === 'all' || user.status === filterStatus;
+    const matchesSearch = 
+      (user.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      (user.email?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
+    const matchesType = filterType === 'all' || user.user_type === filterType;
+    const matchesStatus = filterStatus === 'all' || (user.is_active ? 'active' : 'inactive') === filterStatus;
     return matchesSearch && matchesType && matchesStatus;
   });
 
-  const handleToggleUserStatus = (userId: string) => {
-    setUsers(users.map(user => 
-      user.id === userId 
-        ? { ...user, status: user.status === 'active' ? 'inactive' : 'active' }
-        : user
-    ));
-    // Commented API call
-    // await usersAPI.updateUserStatus(userId, newStatus);
+  const handleToggleUserStatus = async (userId: string) => {
+    try {
+      const user = users.find(u => u.id === userId);
+      if (!user) return;
+
+      const newStatus = !user.is_active;
+      
+      // Update optimistically
+      setUsers(users.map(user => 
+        user.id === userId 
+          ? { ...user, is_active: newStatus }
+          : user
+      ));
+
+      // Call API
+      await usersAPI.updateUserStatus(userId, newStatus ? 'active' : 'inactive');
+      
+      // Refetch to ensure data is in sync
+      const updatedUsers = await usersAPI.getAllUsers();
+      setUsers(updatedUsers);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update user status');
+      // Revert optimistic update on error
+      setUsers(users);
+    }
   };
 
-  const farmers = users.filter(user => user.type === 'farmer');
-  const buyers = users.filter(user => user.type === 'buyer');
-  const activeUsers = users.filter(user => user.status === 'active');
-  const totalTransactions = users.reduce((sum, user) => sum + user.totalTransactions, 0);
+  const farmers = users.filter(user => user.user_type === 'farmer');
+  const buyers = users.filter(user => user.user_type === 'buyer');
+  const activeUsers = users.filter(user => user.is_active);
+
+  if (loading) {
+    return (
+      <div className="flex-1 p-6 flex items-center justify-center">
+        <div className="text-center">Loading users...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex-1 p-6 flex items-center justify-center">
+        <div className="text-center text-red-600">Error: {error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 p-6">
@@ -38,8 +91,8 @@ export const UserManagement: React.FC = () => {
         <p className="text-gray-600">Manage farmers, buyers, and their activities</p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      {/* Stats Cards - Simplified without transactions and rating */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h3 className="text-sm font-medium text-gray-500">Total Users</h3>
           <p className="text-3xl font-bold text-blue-600">{users.length}</p>
@@ -53,79 +106,18 @@ export const UserManagement: React.FC = () => {
           <h3 className="text-sm font-medium text-gray-500">Active Users</h3>
           <p className="text-3xl font-bold text-emerald-600">{activeUsers.length}</p>
           <div className="text-sm text-emerald-600">
-            {((activeUsers.length / users.length) * 100).toFixed(1)}% active rate
+            {users.length > 0 ? ((activeUsers.length / users.length) * 100).toFixed(1) : 0}% active rate
           </div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-sm font-medium text-gray-500">Total Transactions</h3>
-          <p className="text-3xl font-bold text-orange-600">{totalTransactions}</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-sm font-medium text-gray-500">Average Rating</h3>
-          <p className="text-3xl font-bold text-purple-600">
-            {(users.reduce((sum, user) => sum + user.rating, 0) / users.length).toFixed(1)}
+          <h3 className="text-sm font-medium text-gray-500">Signed Up Users</h3>
+          <p className="text-3xl font-bold text-orange-600">
+            {users.filter(user => user.is_user_signup).length}
           </p>
-          <div className="flex items-center mt-1">
-            <Star className="w-4 h-4 text-yellow-500 fill-current" />
-            <span className="text-sm text-gray-600 ml-1">out of 5.0</span>
-          </div>
         </div>
       </div>
 
-      {/* User Type Overview */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Top Farmers by Transactions</h3>
-          <div className="space-y-4">
-            {farmers
-              .sort((a, b) => b.totalTransactions - a.totalTransactions)
-              .slice(0, 5)
-              .map((farmer) => (
-                <div key={farmer.id} className="flex items-center space-x-4 p-3 bg-emerald-50 rounded-lg">
-                  <div className="w-10 h-10 bg-emerald-200 rounded-full flex items-center justify-center">
-                    <span className="font-semibold text-emerald-800">
-                      {farmer.name.charAt(0)}
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-800">{farmer.name}</p>
-                    <p className="text-sm text-gray-600">{farmer.location}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-emerald-600">{farmer.totalTransactions}</p>
-                    <p className="text-sm text-gray-500">transactions</p>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Top Buyers by Transactions</h3>
-          <div className="space-y-4">
-            {buyers
-              .sort((a, b) => b.totalTransactions - a.totalTransactions)
-              .slice(0, 5)
-              .map((buyer) => (
-                <div key={buyer.id} className="flex items-center space-x-4 p-3 bg-blue-50 rounded-lg">
-                  <div className="w-10 h-10 bg-blue-200 rounded-full flex items-center justify-center">
-                    <span className="font-semibold text-blue-800">
-                      {buyer.name.charAt(0)}
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-800">{buyer.name}</p>
-                    <p className="text-sm text-gray-600">{buyer.location}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-blue-600">{buyer.totalTransactions}</p>
-                    <p className="text-sm text-gray-500">transactions</p>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
-      </div>
+      {/* Remove the Top Farmers/Buyers by Transactions section since we don't have transaction data */}
 
       {/* Filters */}
       <div className="bg-white p-6 rounded-lg shadow-md mb-6">
@@ -165,7 +157,7 @@ export const UserManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* Users Table */}
+      {/* Users Table - Updated to use actual API fields */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -174,10 +166,9 @@ export const UserManagement: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transactions</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sign Up</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined Date</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -187,73 +178,72 @@ export const UserManagement: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                        user.type === 'farmer' ? 'bg-emerald-200' : 'bg-blue-200'
+                        user.user_type === 'farmer' ? 'bg-emerald-200' : 'bg-blue-200'
                       }`}>
                         <span className={`font-semibold ${
-                          user.type === 'farmer' ? 'text-emerald-800' : 'text-blue-800'
+                          user.user_type === 'farmer' ? 'text-emerald-800' : 'text-blue-800'
                         }`}>
-                          {user.name.charAt(0)}
+                          {user.name?.charAt(0) || 'U'}
                         </span>
                       </div>
                       <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {user.name || 'Unknown User'}
+                        </div>
                         <div className="text-sm text-gray-500">
-                          Joined {new Date(user.joinDate).toLocaleDateString()}
+                          ID: {user.id}
                         </div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      user.type === 'farmer' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                      user.user_type === 'farmer' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
                     }`}>
-                      {user.type}
+                      {user.user_type}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <div className="space-y-1">
-                      <div className="flex items-center">
-                        <Mail className="w-4 h-4 mr-2 text-gray-400" />
-                        <span className="truncate">{user.email}</span>
-                      </div>
+                      {user.email && (
+                        <div className="flex items-center">
+                          <Mail className="w-4 h-4 mr-2 text-gray-400" />
+                          <span className="truncate">{user.email}</span>
+                        </div>
+                      )}
                       <div className="flex items-center">
                         <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                        <span>{user.phone}</span>
+                        <span>{user.phone_number || user.whatsapp_number || 'No phone'}</span>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div className="flex items-center">
-                      <MapPin className="w-4 h-4 mr-2 text-gray-400" />
-                      <span>{user.location}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div className="font-semibold">{user.totalTransactions}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div className="flex items-center">
-                      <Star className="w-4 h-4 text-yellow-500 fill-current mr-1" />
-                      <span>{user.rating}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                     }`}>
-                      {user.status}
+                      {user.is_active ? 'active' : 'inactive'}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      user.is_user_signup ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {user.is_user_signup ? 'Yes' : 'No'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {new Date(user.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button
                       onClick={() => handleToggleUserStatus(user.id)}
                       className={`flex items-center px-3 py-1 rounded-lg text-xs font-medium ${
-                        user.status === 'active'
+                        user.is_active
                           ? 'bg-red-100 text-red-700 hover:bg-red-200'
                           : 'bg-green-100 text-green-700 hover:bg-green-200'
                       }`}
                     >
-                      {user.status === 'active' ? (
+                      {user.is_active ? (
                         <>
                           <UserX className="w-3 h-3 mr-1" />
                           Deactivate
