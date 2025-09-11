@@ -21,7 +21,7 @@ export interface BuyerRequirement {
   updated_at: string;
 }
 
-const API_BASE_URL = 'https://eravanapi.thescript.design/api/2024';
+const API_BASE_URL = 'https://api.eravan.in/api/2024';
 // Update your User interface to match the API response
 export interface User {
   id: string;

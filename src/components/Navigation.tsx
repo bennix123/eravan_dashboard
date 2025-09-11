@@ -5,7 +5,7 @@ import { Home, Settings, BarChart3, Users, ShoppingCart, Wheat, Megaphone } from
 export const Navigation: React.FC = () => {
   const navItems = [
     { path: '/', icon: Home, label: 'Home' },
-    { path: '/admin', icon: Settings, label: 'Admin Panel' },
+    // { path: '/admin', icon: Settings, label: 'Admin Panel' },
     { path: '/crops-data', icon: Wheat, label: 'Crops Data' },
     { path: '/buyer-requirements', icon: ShoppingCart, label: 'Buyer Requirements' },
     { path: '/users', icon: Users, label: 'User Management' },

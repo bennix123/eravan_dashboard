@@ -20,7 +20,7 @@ function App() {
           <Route path="/crops-data" element={<CropData />} />
           <Route path="/buyer-requirements" element={<BuyerRequirements />} />
           <Route path="/users" element={<UserManagement />} />
-          {/* <Route path="/ad-management" element={<AdManagement />} /> */}
+          <Route path="/ad-management" element={<AdManagement />} />
           <Route path="/analytics" element={<Analytics />} />
         </Routes>
       </div>
