@@ -1,32 +1,121 @@
 import React, { useState, useEffect } from 'react';
-// import { cropsAPI } from '../data/dummyData'; // Update import path as needed
-import {cropsAPI,Crop} from '../api/apiCalls'
+import { cropsAPI, usersAPI, Crop, User } from '../api/apiCalls';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Search, Filter, Download } from 'lucide-react';
+import { Search, Filter, Download, Plus, Edit, Trash2 } from 'lucide-react';
 
 export const CropData: React.FC = () => {
   const [crops, setCrops] = useState<Crop[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userLoading, setUserLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterQuality, setFilterQuality] = useState<string>('all');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [currentCrop, setCurrentCrop] = useState<Crop | null>(null);
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    crop_photo: '',
+    production_capacity_value: 0,
+    production_capacity_frequency: 'kg',
+    tentative_selling_price_per_kg: 0,
+    user_id: '',
+    is_active: true
+  });
 
   useEffect(() => {
-    const fetchCrops = async () => {
-      try {
-        setLoading(true);
-        const cropsData = await cropsAPI.getAllCrops();
-        setCrops(cropsData);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch crops');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchCrops();
+    fetchUsers();
   }, []);
+
+  const fetchCrops = async () => {
+    try {
+      setLoading(true);
+      const cropsData = await cropsAPI.getAllCrops();
+      setCrops(cropsData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch crops');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      setUserLoading(true);
+      const usersData = await usersAPI.getAllUsers();
+      setUsers(usersData);
+    } catch (err) {
+      console.error('Failed to fetch users:', err);
+    } finally {
+      setUserLoading(false);
+    }
+  };
+
+  const handleCreateCrop = async () => {
+    try {
+      await cropsAPI.addCrop(formData);
+      setShowCreateModal(false);
+      resetForm();
+      fetchCrops(); // Refresh the list
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create crop');
+    }
+  };
+
+  const handleUpdateCrop = async () => {
+    if (!currentCrop) return;
+    
+    try {
+      await cropsAPI.updateCrop(currentCrop.id, formData);
+      setShowEditModal(false);
+      resetForm();
+      fetchCrops(); // Refresh the list
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update crop');
+    }
+  };
+
+  const handleDeleteCrop = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this crop?')) return;
+    
+    try {
+      await cropsAPI.deleteCrop(id);
+      fetchCrops(); // Refresh the list
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete crop');
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      crop_photo: '',
+      production_capacity_value: 0,
+      production_capacity_frequency: 'kg',
+      tentative_selling_price_per_kg: 0,
+      user_id: '',
+      is_active: true
+    });
+  };
+
+  const openEditModal = (crop: Crop) => {
+    setCurrentCrop(crop);
+    setFormData({
+      name: crop.name,
+      crop_photo: crop.crop_photo,
+      production_capacity_value: crop.production_capacity_value,
+      production_capacity_frequency: crop.production_capacity_frequency,
+      tentative_selling_price_per_kg: crop.tentative_selling_price_per_kg,
+      user_id: crop.user_id,
+      is_active: crop.is_active
+    });
+    setShowEditModal(true);
+  };
 
   const filteredCrops = crops.filter(crop => {
     const matchesSearch = crop.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -77,9 +166,18 @@ export const CropData: React.FC = () => {
 
   return (
     <div className="flex-1 p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Crop Data Analysis</h1>
-        <p className="text-gray-600">Comprehensive view of all crop listings by farmers</p>
+      <div className="mb-6 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Crop Data Analysis</h1>
+          <p className="text-gray-600">Comprehensive view of all crop listings by farmers</p>
+        </div>
+        <button 
+          onClick={() => setShowCreateModal(true)}
+          className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors flex items-center"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Add New Crop
+        </button>
       </div>
 
       {/* Stats Cards - Simplified */}
@@ -192,6 +290,7 @@ export const CropData: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price per kg</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -227,12 +326,211 @@ export const CropData: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {new Date(crop.created_at).toLocaleDateString()}
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => openEditModal(crop)}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCrop(crop.id)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Create Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Create New Crop</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Crop Name</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Crop Photo URL</label>
+                  <input
+                    type="text"
+                    value={formData.crop_photo}
+                    onChange={(e) => setFormData({...formData, crop_photo: e.target.value})}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Production Capacity Value</label>
+                  <input
+                    type="number"
+                    value={formData.production_capacity_value}
+                    onChange={(e) => setFormData({...formData, production_capacity_value: parseFloat(e.target.value) || 0})}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Production Capacity Frequency</label>
+                  <select
+                    value={formData.production_capacity_frequency}
+                    onChange={(e) => setFormData({...formData, production_capacity_frequency: e.target.value})}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  >
+                    <option value="kg">kg</option>
+                    <option value="ton">ton</option>
+                    <option value="quintal">quintal</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Price per kg (₹)</label>
+                  <input
+                    type="number"
+                    value={formData.tentative_selling_price_per_kg}
+                    onChange={(e) => setFormData({...formData, tentative_selling_price_per_kg: parseFloat(e.target.value) || 0})}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Farmer</label>
+                  <select
+                    value={formData.user_id}
+                    onChange={(e) => setFormData({...formData, user_id: e.target.value})}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  >
+                    <option value="">Select a farmer</option>
+                    {users.filter(user => user.user_type === 'farmer').map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.name || `Farmer ${user.phone_number}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_active}
+                    onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
+                    className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
+                  />
+                  <label className="ml-2 block text-sm text-gray-900">Active</label>
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateCrop}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                >
+                  Create
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && currentCrop && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Edit Crop</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Crop Name</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Crop Photo URL</label>
+                  <input
+                    type="text"
+                    value={formData.crop_photo}
+                    onChange={(e) => setFormData({...formData, crop_photo: e.target.value})}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Production Capacity Value</label>
+                  <input
+                    type="number"
+                    value={formData.production_capacity_value}
+                    onChange={(e) => setFormData({...formData, production_capacity_value: parseFloat(e.target.value) || 0})}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Production Capacity Frequency</label>
+                  <select
+                    value={formData.production_capacity_frequency}
+                    onChange={(e) => setFormData({...formData, production_capacity_frequency: e.target.value})}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  >
+                    <option value="kg">kg</option>
+                    <option value="ton">ton</option>
+                    <option value="quintal">quintal</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Price per kg (₹)</label>
+                  <input
+                    type="number"
+                    value={formData.tentative_selling_price_per_kg}
+                    onChange={(e) => setFormData({...formData, tentative_selling_price_per_kg: parseFloat(e.target.value) || 0})}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_active}
+                    onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
+                    className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
+                  />
+                  <label className="ml-2 block text-sm text-gray-900">Active</label>
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdateCrop}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                >
+                  Update
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -65,6 +65,7 @@ export interface BuyerRequirement {
   created_at: string;
   updated_at: string;
 }
+
 // Crops API
 export const cropsAPI = {
   // Get all crops
@@ -103,34 +104,84 @@ export const cropsAPI = {
     }
   },
 
-  // Add new crop
-  addCrop: async (crop: Omit<Crop, 'id'>): Promise<Crop> => {
-    // const response = await fetch(`${API_BASE_URL}/crops`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(crop)
-    // });
-    // return response.json();
-    console.log('API call: addCrop', crop);
-    return { ...crop, id: Date.now().toString() };
+  // Add new crop - UPDATED with actual implementation
+  addCrop: async (crop: Omit<Crop, 'id' | 'created_at' | 'updated_at' | 'next_tentative_supply_date'>): Promise<Crop> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/crop/create_crop_via_dashboard`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // 'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify(crop)
+      });
+      const result = await response.json();
+      
+      if (result.status && result.data) {
+        return {
+          id: result.data.id,
+          name: result.data.name,
+          crop_photo: result.data.crop_photo,
+          production_capacity_value: result.data.production_capacity_value,
+          production_capacity_frequency: result.data.production_capacity_frequency,
+          next_tentative_supply_date: result.data.next_tentative_supply_date,
+          tentative_selling_price_per_kg: result.data.tentative_selling_price_per_kg,
+          user_id: result.data.user_id,
+          is_active: result.data.is_active,
+          created_at: result.data.created_at,
+          updated_at: result.data.updated_at
+        };
+      }
+      throw new Error(result.message || 'Failed to create crop');
+    } catch (error) {
+      console.error('Error creating crop:', error);
+      throw error;
+    }
   },
 
-  // Update crop
+  // Update crop - UPDATED with actual implementation
   updateCrop: async (id: string, crop: Partial<Crop>): Promise<Crop> => {
-    // const response = await fetch(`${API_BASE_URL}/crops/${id}`, {
-    //   method: 'PUT',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(crop)
-    // });
-    // return response.json();
-    console.log('API call: updateCrop', id, crop);
-    return {} as Crop;
+    try {
+      const response = await fetch(`${API_BASE_URL}/crop/update_crop_details`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // 'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({ id, ...crop })
+      });
+      const result = await response.json();
+      
+      if (result.status && result.data) {
+        return result.data;
+      }
+      throw new Error(result.message || 'Failed to update crop');
+    } catch (error) {
+      console.error('Error updating crop:', error);
+      throw error;
+    }
   },
 
-  // Delete crop
+  // Delete crop - UPDATED with actual implementation
   deleteCrop: async (id: string): Promise<void> => {
-    // await fetch(`${API_BASE_URL}/crops/${id}`, { method: 'DELETE' });
-    console.log('API call: deleteCrop', id);
+    try {
+      const response = await fetch(`${API_BASE_URL}/crop/delete_crop`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // 'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({ id })
+      });
+      const result = await response.json();
+      
+      if (!result.status) {
+        throw new Error(result.message || 'Failed to delete crop');
+      }
+    } catch (error) {
+      console.error('Error deleting crop:', error);
+      throw error;
+    }
   }
 };
 
@@ -246,30 +297,69 @@ export const usersAPI = {
 
   // Get farmers only
   getFarmers: async (): Promise<User[]> => {
-    // const response = await fetch(`${API_BASE_URL}/users?type=farmer`);
-    // return response.json();
-    console.log('API call: getFarmers');
-    return [];
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/get_all_users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ to_apply_pagination: false })
+      });
+      const result = await response.json();
+
+      if (result.status && result.data.usersData) {
+        return result.data.usersData.filter((user: any) => user.user_type === 'farmer');
+      }
+      throw new Error(result.message || 'Failed to fetch farmers');
+    } catch (error) {
+      console.error('Error fetching farmers:', error);
+      throw error;
+    }
   },
 
   // Get buyers only
   getBuyers: async (): Promise<User[]> => {
-    // const response = await fetch(`${API_BASE_URL}/users?type=buyer`);
-    // return response.json();
-    console.log('API call: getBuyers');
-    return [];
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/get_all_users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ to_apply_pagination: false })
+      });
+      const result = await response.json();
+
+      if (result.status && result.data.usersData) {
+        return result.data.usersData.filter((user: any) => user.user_type === 'buyer');
+      }
+      throw new Error(result.message || 'Failed to fetch buyers');
+    } catch (error) {
+      console.error('Error fetching buyers:', error);
+      throw error;
+    }
   },
 
   // Update user status
   updateUserStatus: async (id: string, status: 'active' | 'inactive'): Promise<User> => {
-    // const response = await fetch(`${API_BASE_URL}/users/${id}`, {
-    //   method: 'PUT',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ status })
-    // });
-    // return response.json();
-    console.log('API call: updateUserStatus', id, status);
-    return {} as User;
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/update_user_status`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({ id, status })
+      });
+      const result = await response.json();
+      
+      if (result.status && result.data) {
+        return result.data;
+      }
+      throw new Error(result.message || 'Failed to update user status');
+    } catch (error) {
+      console.error('Error updating user status:', error);
+      throw error;
+    }
   }
 };
 
@@ -277,39 +367,92 @@ export const usersAPI = {
 export const adPostersAPI = {
   // Get all ad posters
   getAllAdPosters: async (): Promise<AdPoster[]> => {
-    // const response = await fetch(`${API_BASE_URL}/ad-posters`);
-    // return response.json();
-    console.log('API call: getAllAdPosters');
-    return [];
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/get_all_app_wall_posters`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({})
+      });
+      const result = await response.json();
+      
+      if (result.status && result.data.posters) {
+        return result.data.posters;
+      }
+      throw new Error(result.message || 'Failed to fetch ad posters');
+    } catch (error) {
+      console.error('Error fetching ad posters:', error);
+      throw error;
+    }
   },
 
   // Add new ad poster
-  addAdPoster: async (adPoster: Omit<AdPoster, 'id'>): Promise<AdPoster> => {
-    // const response = await fetch(`${API_BASE_URL}/ad-posters`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(adPoster)
-    // });
-    // return response.json();
-    console.log('API call: addAdPoster', adPoster);
-    return { ...adPoster, id: Date.now().toString() };
+  addAdPoster: async (adPoster: Omit<AdPoster, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'updated_by'>): Promise<AdPoster> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/create_app_wall_poster`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify(adPoster)
+      });
+      const result = await response.json();
+      
+      if (result.status && result.data.poster) {
+        return result.data.poster;
+      }
+      throw new Error(result.message || 'Failed to create ad poster');
+    } catch (error) {
+      console.error('Error creating ad poster:', error);
+      throw error;
+    }
   },
 
   // Update ad poster
   updateAdPoster: async (id: string, adPoster: Partial<AdPoster>): Promise<AdPoster> => {
-    // const response = await fetch(`${API_BASE_URL}/ad-posters/${id}`, {
-    //   method: 'PUT',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(adPoster)
-    // });
-    // return response.json();
-    console.log('API call: updateAdPoster', id, adPoster);
-    return {} as AdPoster;
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/update_app_wall_poster`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({ id, ...adPoster })
+      });
+      const result = await response.json();
+      
+      if (result.status && result.data.poster) {
+        return result.data.poster;
+      }
+      throw new Error(result.message || 'Failed to update ad poster');
+    } catch (error) {
+      console.error('Error updating ad poster:', error);
+      throw error;
+    }
   },
 
   // Delete ad poster
   deleteAdPoster: async (id: string): Promise<void> => {
-    // await fetch(`${API_BASE_URL}/ad-posters/${id}`, { method: 'DELETE' });
-    console.log('API call: deleteAdPoster', id);
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/delete_app_wall_poster`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({ id })
+      });
+      const result = await response.json();
+      
+      if (!result.status) {
+        throw new Error(result.message || 'Failed to delete ad poster');
+      }
+    } catch (error) {
+      console.error('Error deleting ad poster:', error);
+      throw error;
+    }
   }
 };

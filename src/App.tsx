@@ -4,6 +4,7 @@ import { Navigation } from './components/Navigation';
 import { HomePage } from './components/HomePage';
 import { AdminPanel } from './components/AdminPanel';
 import { CropData } from './components/CropData';
+import {AppPosters} from './components/appPosters';
 import { BuyerRequirements } from './components/BuyerRequirements';
 import { UserManagement } from './components/UserManagement';
 import { AdManagement } from './components/AdManagement';
@@ -22,6 +23,7 @@ function App() {
           <Route path="/users" element={<UserManagement />} />
           <Route path="/ad-management" element={<AdManagement />} />
           <Route path="/analytics" element={<Analytics />} />
+          <Route path="/app-posters" element={<AppPosters />} />
         </Routes>
       </div>
     </Router>
